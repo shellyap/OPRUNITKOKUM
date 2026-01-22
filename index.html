@@ -30,9 +30,7 @@
     
     <script>
         // --- PWA Auto-Configuration Script ---
-        // This generates an app icon and manifest on the fly so you don't need external files.
         (function() {
-            // 1. Generate a crisp SVG Icon
             const iconSvg = `
             <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
                 <rect width="512" height="512" rx="120" fill="#4f46e5"/>
@@ -40,10 +38,7 @@
                 <circle cx="256" cy="240" r="40" fill="#4f46e5"/>
                 <text x="50%" y="420" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="90" fill="white" letter-spacing="4">OPR</text>
             </svg>`.trim();
-            
             const iconUrl = 'data:image/svg+xml;base64,' + btoa(iconSvg);
-            
-            // 2. Add Favicons & Apple Touch Icons
             const links = [
                 { rel: 'icon', href: iconUrl },
                 { rel: 'apple-touch-icon', href: iconUrl }
@@ -54,8 +49,6 @@
                 link.href = cfg.href;
                 document.head.appendChild(link);
             });
-
-            // 3. Generate & Inject Manifest
             const manifest = {
                 name: "OPR Unit Ko-Kurikulum",
                 short_name: "OPR Ko-Q",
@@ -66,7 +59,6 @@
                 orientation: "portrait",
                 icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml" }]
             };
-            
             const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
             document.getElementById('manifest-placeholder').href = URL.createObjectURL(manifestBlob);
         })();
@@ -77,12 +69,9 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Fixed Printing Logic */
         @media print {
             body { background: white !important; margin: 0 !important; padding: 0 !important; }
             #root-ui, nav, footer, .print-hidden, button { display: none !important; }
-            
-            /* Bring the print area onto the paper */
             #print-area {
                 display: block !important;
                 visibility: visible !important;
@@ -105,7 +94,6 @@
             @page { size: A4 portrait; margin: 0; }
         }
 
-        /* Rigid A4 Container for UI Preview */
         .a4-page {
             width: 210mm;
             height: 297mm;
@@ -119,17 +107,13 @@
             position: relative;
         }
 
-        /* Off-screen rendering for html2canvas
-           We use this instead of display:none because html2canvas 
-           cannot capture elements that are not rendered.
-        */
         .screen-hidden {
             position: fixed;
             left: -10000px;
             top: 0;
             opacity: 0;
             z-index: -100;
-            width: 210mm; /* Enforce width even when off-screen */
+            width: 210mm;
             height: 297mm;
             overflow: hidden;
         }
@@ -150,7 +134,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // --- INLINE ICONS (Replaces external dependency to fix runtime errors) ---
         const IconBase = ({ size = 24, className = "", children, ...props }) => (
             <svg 
                 xmlns="http://www.w3.org/2000/svg" 
@@ -201,6 +184,7 @@
             FileDown = IconPlaceholder 
         } = Lucide;
 
+        // --- 1. PASTE YOUR FIREBASE CONFIG HERE ---
         const DEFAULT_CONFIG = {
             apiKey: "AIzaSyB9l-V0NZjkhAYZmBVLgISNxa1IZu_g4as",
             authDomain: "unitko-opr.firebaseapp.com",
@@ -217,15 +201,103 @@
             { id: 'KELAB DAN PERSATUAN', label: 'Kelab & Persatuan', icon: Users, border: 'border-rose-900', bg: 'bg-rose-50', text: 'text-rose-900' }
         ];
 
-        const INITIAL_FORM = {
-            namaProgram: '', kategori: 'UNIT BERUNIFORM', anjuran: '', disediakanOleh: '',
-            tarikh: '', masaMula: '', masaTamat: '', tempat: '', sasaran: '',
-            objektif: '', aktiviti: '', kekuatan: '', kelemahan: '',
+        // NEW: Data Lists for Specific Units
+        const UNIT_DATA = {
+            'SUKAN PERMAINAN': [
+                "Bola Sepak", "Bola Jaring", "Bola Tampar", "Bola Baling", "Ragbi", 
+                "Bola Keranjang", "Ping Pong", "Badminton", "Sepak Takraw", "Catur", 
+                "Silat", "Taekwondo", "Karate", "Memanah", "Petanque"
+            ],
+            'KELAB DAN PERSATUAN': [
+                "Kelab Matematik", "Kelab Sains", "Kelab Komputer / ICT / Robotic", 
+                "Kelab Bahasa Melayu", "Kelab Bahasa Inggeris", "Kelab Sejarah", 
+                "Kelab Geografi", "Kelab Kimia / Fizik / Biologi", "Kelab Seni Visual", 
+                "Kelab Seni Persembahan / Drama / Teater", "Kelab Muzik / Orkestra / Koir", 
+                "Kelab Fotografi / Multimedia", "Kelab Penerbitan / Majalah / Blog", 
+                "Kelab Tari / Silat Seni / Tarian Tradisional", 
+                "Persatuan Catur / E-Sports / Board Games", 
+                "Persatuan Debat / Public Speaking / Kelab Pidato"
+            ],
+            'UNIT BERUNIFORM': [
+                "Kadet Remaja Sekolah (KRS)", "Pengakap", "Pergerakan Puteri Islam Malaysia (PPIM)", 
+                "Persatuan Pandu Puteri Malaysia", "Pasukan Bulan Sabit Merah Malaysia (PBSM)", 
+                "St. John Ambulans Malaysia", "Kadet Polis", "Kadet Bomba dan Penyelamat", 
+                "Pasukan Kadet Bersatu Malaysia (PKBM)"
+            ]
         };
+
+        const OBJEKTIF_BERUNIFORM = [
+            "Pengenalan: Suai kenal, pendaftaran ahli, dan penerangan moto/nilai teras.",
+            "Latihan Disiplin: Kawad kaki, kawad tangan, dan formasi barisan.",
+            "Latihan Disiplin: Penerapan etika berpakaian dan peraturan asas unit.",
+            "Kemahiran Unit (KRS/Polis): Asas keselamatan, pertolongan cemas, dan peraturan trafik.",
+            "Kemahiran Unit (Pengakap/PKBM): Survival, tali-temali, perkhemahan, dan navigasi.",
+            "Kemahiran Unit (BSMM/St. John): Asas pertolongan cemas, CPR, dan prosedur kecemasan.",
+            "Kemahiran Unit (Bomba/Tentera): Asas kebombaan, latihan fizikal, dan taktikal ringkas.",
+            "Kemahiran Unit (PPIM/Pandu Puteri): Kemahiran hidup, kerjasama, dan projek komuniti.",
+            "Latihan Fizikal: Joging, senaman ringkas, dan permainan membina stamina.",
+            "Kepimpinan: Latihan peranan ketua/AJK dan permainan berpasukan.",
+            "Khidmat Masyarakat: Gotong-royong, membersih kawasan, atau projek kebajikan.",
+            "Refleksi & Penilaian: Perbincangan prestasi, disiplin, dan pencapaian objektif."
+        ];
+
+        const INITIAL_FORM = {
+            type: 'program', // 'program' or 'weekly'
+            
+            // Common
+            kategori: 'UNIT BERUNIFORM', 
+            tarikh: '', 
+            tempat: '', 
+            
+            // Program Specific
+            namaProgram: '', 
+            anjuran: '', 
+            disediakanOleh: '',
+            masaMula: '', 
+            masaTamat: '', 
+            sasaran: '', 
+            objektif: '', 
+            aktiviti: '', 
+            kekuatan: '', 
+            kelemahan: '',
+
+            // Weekly Specific
+            unitNama: '', 
+            guruPenasihat: '',
+            kehadiranHadir: '',
+            kehadiranJumlah: '',
+            kemahiranNilai: '', // Kemahiran / Nilai Diterapkan
+            refleksi: '' // Refleksi Guru Penasihat
+        };
+
+        // TIME FORMATTER
+        const formatTimeBM = (time) => {
+            if (!time) return '';
+            const [h, m] = time.split(':');
+            const hour = parseInt(h);
+            let suffix = 'PG';
+            if (hour >= 12) {
+                if (hour >= 19) suffix = 'MLM';
+                else if (hour >= 14) suffix = 'PTG';
+                else suffix = 'TGH';
+            }
+            const h12 = hour % 12 || 12;
+            return `${h12}:${m} ${suffix}`;
+        };
+
+        // GENERATE TIME OPTIONS (7:00 AM - 6:30 PM)
+        const TIME_OPTIONS = [];
+        for (let h = 7; h < 19; h++) {
+            ['00', '30'].forEach(m => {
+                const val = `${h.toString().padStart(2,'0')}:${m}`;
+                TIME_OPTIONS.push({ value: val, label: formatTimeBM(val) });
+            });
+        }
 
         function App() {
             const [user, setUser] = useState(null);
             const [activeTab, setActiveTab] = useState('editor');
+            const [reportType, setReportType] = useState('program'); 
             const [formData, setFormData] = useState(INITIAL_FORM);
             const [images, setImages] = useState([null, null, null, null]);
             const [logo, setLogo] = useState(null);
@@ -234,10 +306,16 @@
             const [isSaving, setIsSaving] = useState(false);
             const [isDownloading, setIsDownloading] = useState(false);
             const [archiveFilter, setArchiveFilter] = useState('UNIT BERUNIFORM');
+            const [archiveUnitFilter, setArchiveUnitFilter] = useState('ALL'); 
+            const [archiveReportType, setArchiveReportType] = useState('program'); 
             const [statusMsg, setStatusMsg] = useState(null);
 
-            // Use environment App ID if available, otherwise fallback
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'unitko-opr-smkms';
+
+            const getMeetingStats = (unitName) => {
+                const count = reports.filter(r => r.type === 'weekly' && r.unitNama === unitName).length;
+                return { count, percent: Math.min(100, Math.round((count / 12) * 100)) };
+            };
 
             useEffect(() => {
                 const checkSDK = setInterval(() => {
@@ -249,17 +327,21 @@
                 return () => clearInterval(checkSDK);
             }, []);
 
+            useEffect(() => {
+                if (reportType === 'weekly' && !formData.unitNama) {
+                     const firstUnit = UNIT_DATA[formData.kategori]?.[0] || '';
+                     setFormData(prev => ({ ...prev, unitNama: firstUnit }));
+                }
+            }, [formData.kategori, reportType]);
+
             const initFirebase = async () => {
                 const { initializeApp, getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, getFirestore } = window.FirebaseSDK;
-                
-                // Use environment config if available
                 const config = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : DEFAULT_CONFIG;
                 
                 const app = initializeApp(config);
                 const auth = getAuth(app);
                 const db = getFirestore(app);
 
-                // Prioritize Custom Token for correct permissions
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     try {
                         await signInWithCustomToken(auth, __initial_auth_token);
@@ -279,15 +361,12 @@
 
             const setupSync = (db) => {
                 const { collection, onSnapshot, query, doc } = window.FirebaseSDK;
-                
-                // Sync Reports
                 const reportsCol = collection(db, 'artifacts', appId, 'public', 'data', 'reports');
                 onSnapshot(query(reportsCol), (snapshot) => {
                     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                     setReports(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
                 }, (err) => console.error("Reports Sync Error:", err));
 
-                // Sync Global Logo
                 const settingsDoc = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global_config');
                 onSnapshot(settingsDoc, (snap) => {
                     if (snap.exists() && snap.data().logo) setLogo(snap.data().logo);
@@ -296,10 +375,15 @@
 
             const handleInputChange = (e) => {
                 const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
+                setFormData(prev => {
+                    const newData = { ...prev, [name]: value };
+                    if (name === 'kategori' && prev.type === 'weekly') {
+                        newData.unitNama = UNIT_DATA[value]?.[0] || '';
+                    }
+                    return newData;
+                });
             };
 
-            // New Utility: Compress Images to save space
             const compressImage = (file) => {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
@@ -309,7 +393,7 @@
                         img.src = event.target.result;
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 800; // Resize large images
+                            const MAX_WIDTH = 800; 
                             const MAX_HEIGHT = 800;
                             let width = img.width;
                             let height = img.height;
@@ -329,7 +413,6 @@
                             canvas.height = height;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, width, height);
-                            // Compress to JPEG at 60% quality
                             resolve(canvas.toDataURL('image/jpeg', 0.6)); 
                         };
                     };
@@ -348,7 +431,11 @@
                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global_config'), { logo: base64 }, { merge: true });
                         showStatus("School Logo updated globally");
                     } catch (error) {
-                        showStatus("Error uploading logo", "error");
+                        if (error.code === 'permission-denied') {
+                            showStatus("Access Denied: Please add your own Firebase keys to the code.", "error");
+                        } else {
+                            showStatus("Error uploading logo", "error");
+                        }
                     }
                 }
             };
@@ -357,7 +444,6 @@
                 const file = e.target.files[0];
                 if (file) {
                     try {
-                        // Automatically compress before setting state
                         const compressedBase64 = await compressImage(file);
                         const newImages = [...images];
                         newImages[index] = compressedBase64;
@@ -370,30 +456,49 @@
             };
 
             const saveReport = async () => {
-                if (!formData.namaProgram || !formData.tarikh) return showStatus("Required: Program Name & Date", "error");
+                if (!formData.tarikh) return showStatus("Sila masukkan Tarikh", "error");
+                if (formData.type === 'program' && !formData.namaProgram) return showStatus("Sila masukkan Nama Program", "error");
+                if (formData.type === 'weekly' && !formData.unitNama) return showStatus("Sila pilih Unit", "error");
+
                 setIsSaving(true);
                 const { getFirestore, collection, addDoc, serverTimestamp } = window.FirebaseSDK;
                 const db = getFirestore();
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'reports'), {
-                        ...formData, images, createdAt: serverTimestamp(), userId: user.uid
+                        ...formData, 
+                        type: reportType, 
+                        images, 
+                        createdAt: serverTimestamp(), 
+                        userId: user.uid
                     });
-                    showStatus("Report Published to Cloud Archive");
+                    showStatus("Laporan Berjaya Disimpan di Awan");
                     setFormData(INITIAL_FORM);
                     setImages([null, null, null, null]);
                     setActiveTab('archive');
-                } catch (e) { showStatus("Error: " + e.message, "error"); }
+                } catch (e) { 
+                    if (e.code === 'permission-denied') {
+                         showStatus("PERMISSION DENIED: Go to Firebase Console > Firestore Database > Rules and change 'allow write: if false' to 'true'.", "error");
+                    } else {
+                        showStatus("Error: " + e.message, "error"); 
+                    }
+                }
                 setIsSaving(false);
             };
 
             const deleteReport = async (id) => {
-                if (!confirm("Delete this document from cloud?")) return;
+                if (!confirm("Padam laporan ini dari awan?")) return;
                 const { getFirestore, doc, deleteDoc } = window.FirebaseSDK;
                 const db = getFirestore();
                 try {
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'reports', id));
-                    showStatus("Deleted Successfully");
-                } catch (err) { showStatus("Delete failed.", "error"); }
+                    showStatus("Berjaya Dipadam");
+                } catch (err) { 
+                    if (err.code === 'permission-denied') {
+                         showStatus("PERMISSION DENIED: Go to Firebase Console > Firestore Database > Rules and change 'allow write: if false' to 'true'.", "error");
+                    } else {
+                        showStatus("Gagal memadam.", "error"); 
+                    }
+                }
             };
 
             const downloadAsJPG = async () => {
@@ -401,30 +506,29 @@
                 setIsDownloading(true);
                 try {
                     const el = document.getElementById('print-area');
-                    
-                    // Force opacity to 1 temporarily for capture (just in case)
                     const originalOpacity = el.style.opacity;
                     el.style.opacity = '1';
 
                     const canvas = await window.html2canvas(el, { 
-                        scale: 2, // Reduced scale slightly for stability
+                        scale: 2, 
                         useCORS: true, 
                         allowTaint: true,
                         backgroundColor: "#ffffff",
                         logging: false,
-                        width: 794, // Standard A4 width in pixels at 96 DPI (approx)
+                        width: 794, 
                         height: 1123,
-                        windowWidth: 1200, // Simulate desktop width
+                        windowWidth: 1200, 
                     });
 
-                    // Restore opacity
                     el.style.opacity = originalOpacity;
 
+                    const title = reportType === 'program' ? (formData.namaProgram || "OPR") : (formData.unitNama || "Laporan Mingguan");
+
                     const link = document.createElement('a');
-                    link.download = `${(viewingReport || formData).namaProgram || "OPR"}.jpg`;
+                    link.download = `${title}.jpg`;
                     link.href = canvas.toDataURL('image/jpeg', 0.9);
                     link.click();
-                    showStatus("Image Saved");
+                    showStatus("Imej Disimpan");
                 } catch (e) { 
                     console.error(e);
                     showStatus("Download failed: " + e.message, "error"); 
@@ -437,21 +541,8 @@
                 setTimeout(() => setStatusMsg(null), 4000);
             };
 
-            const formatTimeBM = (time) => {
-                if (!time) return '';
-                const [h, m] = time.split(':');
-                const hour = parseInt(h);
-                let suffix = 'PG';
-                if (hour >= 12) {
-                    if (hour >= 19) suffix = 'MLM';
-                    else if (hour >= 14) suffix = 'PTG';
-                    else suffix = 'TGH';
-                }
-                const h12 = hour % 12 || 12;
-                return `${h12}:${m} ${suffix}`;
-            };
-
-            const ReportDocument = ({ data, reportImages, schoolLogo }) => {
+            // --- Renamed from ReportDocument to avoid clash ---
+            const ProgramReportDocument = ({ data, reportImages, schoolLogo }) => {
                 const cat = CATEGORIES.find(c => c.id === data.kategori) || CATEGORIES[0];
                 return (
                     <div className="a4-page shadow-2xl">
@@ -530,6 +621,142 @@
                 );
             };
 
+            const WeeklyReportDocument = ({ data, reportImages, schoolLogo }) => {
+                const cat = CATEGORIES.find(c => c.id === data.kategori) || CATEGORIES[0];
+                
+                // Calculate Percentage for Display
+                const percentage = data.kehadiranHadir && data.kehadiranJumlah 
+                    ? Math.round((data.kehadiranHadir / data.kehadiranJumlah) * 100) 
+                    : 0;
+
+                // CALCULATE MEETING NUMBER (Perjumpaan Ke-X)
+                let meetingNumber = 1;
+                if (data.unitNama) {
+                    // Get all weekly reports for this unit
+                    const unitReports = reports.filter(r => r.type === 'weekly' && r.unitNama === data.unitNama);
+                    
+                    if (data.id) {
+                        // If viewing an archived report, find its position based on Date
+                        // Sort by date ascending to ensure chronological order numbering
+                        const sorted = [...unitReports].sort((a, b) => new Date(a.tarikh) - new Date(b.tarikh));
+                        const index = sorted.findIndex(r => r.id === data.id);
+                        if (index !== -1) meetingNumber = index + 1;
+                    } else {
+                        // If previewing a new report (no ID yet)
+                        // Assume it is the next one.
+                        meetingNumber = unitReports.length + 1;
+                    }
+                }
+
+                return (
+                    <div className="a4-page shadow-2xl">
+                        <div className={`border-[3px] border-double ${cat.border} h-full flex flex-col p-5 overflow-hidden`}>
+                            {/* Header */}
+                            <div className={`flex border-b-2 ${cat.border} pb-2 mb-2 items-center flex-shrink-0`}>
+                                <div className="w-14 h-14 flex-shrink-0 flex items-center justify-center mr-3">
+                                    {schoolLogo ? <img src={schoolLogo} className="max-w-full max-h-full object-contain filter contrast-125" /> : <School size={35} className="text-gray-200" />}
+                                </div>
+                                <div className="flex-grow text-center">
+                                    <h1 className="text-md font-bold uppercase tracking-tight" style={{fontFamily: 'Times New Roman'}}>SMK Mat Salleh Ranau</h1>
+                                    <h2 className={`text-xs font-bold uppercase ${cat.text}`}>Laporan Perjumpaan Mingguan</h2>
+                                    <div className={`border-t ${cat.border} w-20 mx-auto my-0.5`}></div>
+                                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-80">{cat.label}</p>
+                                </div>
+                                <div className="w-14"></div>
+                            </div>
+                            
+                            {/* Title Block with Meeting Record */}
+                            <div className={`${cat.bg} border ${cat.border} p-2 text-center mb-4 flex-shrink-0`}>
+                                <h3 className={`text-sm font-extrabold uppercase line-clamp-1 ${cat.text}`}>{data.unitNama || "NAMA UNIT"}</h3>
+                                <div className={`inline-block border-t-2 ${cat.border} mt-1 pt-1 px-4 border-dotted`}>
+                                    <p className={`text-[10px] font-black uppercase ${cat.text} tracking-widest`}>
+                                        LAPORAN PERJUMPAAN KE-{meetingNumber}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Section A: Maklumat */}
+                            <div className={`border ${cat.border} mb-3 flex-shrink-0`}>
+                                <div className={`${cat.bg} border-b ${cat.border} p-1 px-2 text-[9px] font-bold uppercase ${cat.text}`}>A. Maklumat Perjumpaan</div>
+                                <div className="grid grid-cols-2 text-[9px] p-2 gap-y-1">
+                                    <div className="flex"><span className="font-bold w-20">Tarikh</span>: {data.tarikh}</div>
+                                    <div className="flex"><span className="font-bold w-20">Masa</span>: {data.masaMula ? `${formatTimeBM(data.masaMula)} - ${formatTimeBM(data.masaTamat)}` : "-"}</div>
+                                    <div className="flex"><span className="font-bold w-20">Tempat</span>: {data.tempat}</div>
+                                    <div className="flex"><span className="font-bold w-20">Kehadiran</span>: {data.kehadiranHadir || "__"} / {data.kehadiranJumlah || "__"} ({percentage}%)</div>
+                                    <div className="col-span-2 flex mt-1"><span className="font-bold w-20">Guru Penasihat</span>: {data.guruPenasihat}</div>
+                                </div>
+                            </div>
+
+                            {/* Section B: Objektif */}
+                            <div className={`border ${cat.border} mb-3 flex-shrink-0`}>
+                                <div className={`${cat.bg} border-b ${cat.border} p-1 px-2 text-[9px] font-bold uppercase ${cat.text}`}>B. Objektif & Nilai</div>
+                                <div className="p-2 text-[9px] space-y-2">
+                                    <div>
+                                        <span className="font-bold block mb-0.5">Objektif Perjumpaan:</span>
+                                        <p className="text-justify">{data.objektif || "-"}</p>
+                                    </div>
+                                    <div>
+                                        <span className="font-bold block mb-0.5">Kemahiran / Nilai Diterapkan:</span>
+                                        <p className="text-justify">{data.kemahiranNilai || "-"}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section C: Aktiviti */}
+                            <div className={`border ${cat.border} mb-3 flex-shrink-0 min-h-[100px]`}>
+                                <div className={`${cat.bg} border-b ${cat.border} p-1 px-2 text-[9px] font-bold uppercase ${cat.text}`}>C. Aktiviti Dilaksanakan</div>
+                                <div className="p-2 text-[9px] text-justify whitespace-pre-wrap">
+                                    {data.aktiviti || "-"}
+                                </div>
+                            </div>
+
+                            {/* Section Photos */}
+                             <div className={`border ${cat.border} flex-grow flex flex-col overflow-hidden mb-3`}>
+                                <div className={`${cat.bg} border-b ${cat.border} p-1 px-2 text-[9px] font-bold uppercase text-center ${cat.text}`}>Laporan Bergambar</div>
+                                <div className="grid grid-cols-2 grid-rows-2 gap-1.5 p-1.5 bg-gray-50 flex-grow overflow-hidden">
+                                    {reportImages.map((img, i) => (
+                                        <div key={i} className="bg-white border border-gray-200 flex items-center justify-center overflow-hidden h-full">
+                                            {img ? <img src={img} className="w-full h-full object-contain" /> : <p className="text-[7px] text-gray-300 italic">Ruang Foto {i+1}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Section G: Refleksi */}
+                            <div className={`border ${cat.border} mb-3 flex-shrink-0`}>
+                                <div className={`${cat.bg} border-b ${cat.border} p-1 px-2 text-[9px] font-bold uppercase ${cat.text}`}>G. Refleksi Guru Penasihat</div>
+                                <div className="p-2 text-[9px] text-justify">
+                                    <p className="italic opacity-70 mb-1">(Kekuatan perjumpaan dan perkara perlu penambahbaikan)</p>
+                                    {data.refleksi || "-"}
+                                </div>
+                            </div>
+
+                            {/* Signatures */}
+                            <div className={`mt-1 pt-2 grid grid-cols-2 gap-16 text-[9px] flex-shrink-0 border-t ${cat.border}`}>
+                                <div className="text-center">
+                                    <p className="mb-6 font-medium uppercase">Disediakan Oleh:</p>
+                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold uppercase pb-0.5`}>{data.guruPenasihat || "................................"}</div>
+                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">GURU PENASIHAT</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="mb-6 font-medium uppercase">Disahkan Oleh:</p>
+                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold pb-0.5`}>................................</div>
+                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">PK KOKUM / PENGETUA</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const ReportDocument = (props) => {
+                const type = props.data.type || 'program';
+                if (type === 'weekly') {
+                    return <WeeklyReportDocument {...props} />;
+                }
+                return <ProgramReportDocument {...props} />;
+            };
+
             return (
                 <div className="min-h-screen flex flex-col">
                     <div id="root-ui" className="flex flex-col flex-grow">
@@ -542,9 +769,12 @@
                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">SMK MAT SALLEH RANAU</p>
                                     </div>
                                 </div>
-                                <div className="flex bg-slate-800/80 backdrop-blur p-1 rounded-2xl border border-slate-700">
-                                    <button onClick={() => {setActiveTab('editor'); setViewingReport(null)}} className={`px-8 py-3 rounded-xl text-xs font-black uppercase transition-all duration-300 ${activeTab === 'editor' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Create Report</button>
-                                    <button onClick={() => {setActiveTab('archive'); setViewingReport(null)}} className={`px-8 py-3 rounded-xl text-xs font-black uppercase transition-all duration-300 ${activeTab === 'archive' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>Archive Repository</button>
+                                <div className="flex gap-2">
+                                    <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
+                                        <button onClick={() => {setReportType('program'); setActiveTab('editor'); setViewingReport(null); setFormData(prev => ({...INITIAL_FORM, type: 'program'}));}} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${reportType === 'program' && activeTab === 'editor' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-white'}`}>Laporan Program</button>
+                                        <button onClick={() => {setReportType('weekly'); setActiveTab('editor'); setViewingReport(null); setFormData(prev => ({...INITIAL_FORM, type: 'weekly'}));}} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${reportType === 'weekly' && activeTab === 'editor' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>Laporan Mingguan</button>
+                                    </div>
+                                    <button onClick={() => {setActiveTab('archive'); setViewingReport(null)}} className={`px-6 py-2 rounded-2xl text-[10px] font-black uppercase transition-all border border-slate-700 ${activeTab === 'archive' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>Arkib</button>
                                 </div>
                                 <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black border ${user ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400'}`}>
                                     <div className={`w-1.5 h-1.5 rounded-full ${user ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
@@ -558,38 +788,135 @@
                                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                                     <div className="lg:col-span-5 xl:col-span-4 space-y-8">
                                         <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 space-y-8">
-                                            <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2"><Layout size={18} className="text-indigo-600"/> Data Entry</h3>
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest flex items-center gap-2">
+                                                    <Layout size={18} className={reportType === 'weekly' ? "text-emerald-600" : "text-indigo-600"}/> 
+                                                    {reportType === 'weekly' ? "Input Laporan Mingguan" : "Input Laporan Program"}
+                                                </h3>
+                                                
+                                                {/* NEW: Logo Upload Button */}
+                                                <label className="cursor-pointer group relative">
+                                                     <div className={`p-2 rounded-xl transition-all border ${reportType === 'weekly' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'}`}>
+                                                         <School size={18} />
+                                                     </div>
+                                                     <div className="absolute right-0 -top-8 bg-slate-900 text-white text-[8px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                         Tukar Logo Sekolah
+                                                     </div>
+                                                     <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                                </label>
+                                            </div>
+                                            
                                             <div className="space-y-4">
-                                                <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 flex items-center gap-4 group">
-                                                    <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center overflow-hidden border border-slate-200">
-                                                        {logo ? <img src={logo} className="w-full h-full object-contain" /> : <School size={28} className="text-slate-300" />}
-                                                    </div>
-                                                    <label className="flex-grow cursor-pointer text-center py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 hover:bg-slate-900 hover:text-white transition-all">
-                                                        Update Logo
-                                                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                                                    </label>
-                                                </div>
-                                                <select name="kategori" value={formData.kategori} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                                                 <select name="kategori" value={formData.kategori} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer">
                                                     {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                                                 </select>
-                                                <input type="text" name="namaProgram" placeholder="Program Name" value={formData.namaProgram} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
-                                                <input type="text" name="anjuran" placeholder="Organizer Unit" value={formData.anjuran} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <input type="date" name="tarikh" value={formData.tarikh} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
-                                                    <input type="text" name="tempat" placeholder="Venue" value={formData.tempat} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4 text-xs">
-                                                    <input type="time" name="masaMula" value={formData.masaMula} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none" />
-                                                    <input type="time" name="masaTamat" value={formData.masaTamat} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none" />
-                                                </div>
-                                                <input type="text" name="sasaran" placeholder="Target Participants" value={formData.sasaran} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
-                                                <textarea name="objektif" placeholder="Objectives..." rows="2" value={formData.objektif} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500 resize-none" />
-                                                <textarea name="aktiviti" placeholder="Summary..." rows="2" value={formData.aktiviti} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500 resize-none" />
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <textarea name="kekuatan" placeholder="Strengths..." rows="2" value={formData.kekuatan} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 text-xs outline-none focus:border-indigo-500 resize-none" />
-                                                    <textarea name="kelemahan" placeholder="Weaknesses..." rows="2" value={formData.kelemahan} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 text-xs outline-none focus:border-indigo-500 resize-none" />
-                                                </div>
-                                                <input type="text" name="disediakanOleh" placeholder="Prepared By" value={formData.disediakanOleh} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
+
+                                                {reportType === 'weekly' && (
+                                                    <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
+                                                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <label className="text-[10px] font-bold uppercase text-emerald-800 block">Pilih Unit:</label>
+                                                                {formData.unitNama && (
+                                                                    <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                                        Rekod Terdahulu: {getMeetingStats(formData.unitNama).count} | Perjumpaan Ke-{getMeetingStats(formData.unitNama).count + 1}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <select name="unitNama" value={formData.unitNama} onChange={handleInputChange} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-emerald-500">
+                                                                {(UNIT_DATA[formData.kategori] || []).map((u, idx) => (
+                                                                    <option key={idx} value={u}>{u}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <input type="date" name="tarikh" value={formData.tarikh} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                <select name="masaMula" value={formData.masaMula} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-xs font-bold outline-none appearance-none">
+                                                                    <option value="">Mula</option>
+                                                                    {TIME_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                                </select>
+                                                                <select name="masaTamat" value={formData.masaTamat} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-xs font-bold outline-none appearance-none">
+                                                                    <option value="">Tamat</option>
+                                                                    {TIME_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <input type="text" name="tempat" placeholder="Tempat Perjumpaan" value={formData.tempat} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                        <input type="text" name="guruPenasihat" placeholder="Nama Guru Penasihat" value={formData.guruPenasihat} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                        
+                                                        <div className="grid grid-cols-12 gap-3">
+                                                            <div className="col-span-5">
+                                                                <input type="number" name="kehadiranHadir" placeholder="Bil. Hadir" value={formData.kehadiranHadir} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                            </div>
+                                                            <div className="col-span-5">
+                                                                <input type="number" name="kehadiranJumlah" placeholder="Jumlah Ahli" value={formData.kehadiranJumlah} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                            </div>
+                                                            <div className="col-span-2 flex items-center justify-center bg-emerald-100 border-2 border-emerald-200 rounded-2xl" title="Peratus Kehadiran">
+                                                                <span className="font-black text-emerald-600 text-xs">
+                                                                    {formData.kehadiranHadir && formData.kehadiranJumlah ? Math.round((formData.kehadiranHadir / formData.kehadiranJumlah) * 100) : 0}%
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {formData.kategori === 'UNIT BERUNIFORM' ? (
+                                                            <select name="objektif" value={formData.objektif} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500">
+                                                                <option value="">Pilih Objektif Perjumpaan...</option>
+                                                                {OBJEKTIF_BERUNIFORM.map((obj, idx) => (
+                                                                    <option key={idx} value={obj}>{obj}</option>
+                                                                ))}
+                                                            </select>
+                                                        ) : (
+                                                            <textarea name="objektif" placeholder="B. Objektif Perjumpaan..." rows="3" value={formData.objektif} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none resize-none" />
+                                                        )}
+                                                        
+                                                        <textarea name="kemahiranNilai" placeholder="Kemahiran / Nilai Diterapkan..." rows="2" value={formData.kemahiranNilai} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none resize-none" />
+                                                        <textarea name="aktiviti" placeholder="C. Aktiviti Utama Dilaksanakan..." rows="4" value={formData.aktiviti} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none resize-none" />
+                                                        <textarea name="refleksi" placeholder="G. Refleksi (Kekuatan & Penambahbaikan)..." rows="3" value={formData.refleksi} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none resize-none" />
+                                                    </div>
+                                                )}
+
+                                                {reportType === 'program' && (
+                                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                                        <input type="text" name="namaProgram" placeholder="Nama Program" value={formData.namaProgram} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
+                                                        <input type="text" name="anjuran" placeholder="Unit Anjuran" value={formData.anjuran} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
+                                                        
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <input type="date" name="tarikh" value={formData.tarikh} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                            <input type="text" name="tempat" placeholder="Tempat" value={formData.tempat} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <select name="masaMula" value={formData.masaMula} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-xs font-bold outline-none appearance-none">
+                                                                <option value="">Masa Mula</option>
+                                                                {TIME_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                            </select>
+                                                            <select name="masaTamat" value={formData.masaTamat} onChange={handleInputChange} className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-xs font-bold outline-none appearance-none">
+                                                                <option value="">Masa Tamat</option>
+                                                                {TIME_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <input type="text" name="sasaran" placeholder="Sasaran Peserta" value={formData.sasaran} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none" />
+                                                        
+                                                        {formData.kategori === 'UNIT BERUNIFORM' ? (
+                                                            <select name="objektif" value={formData.objektif} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500">
+                                                                <option value="">Pilih Objektif Program...</option>
+                                                                {OBJEKTIF_BERUNIFORM.map((obj, idx) => (
+                                                                    <option key={idx} value={obj}>{obj}</option>
+                                                                ))}
+                                                            </select>
+                                                        ) : (
+                                                            <textarea name="objektif" placeholder="Objektif..." rows="2" value={formData.objektif} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500 resize-none" />
+                                                        )}
+
+                                                        <textarea name="aktiviti" placeholder="Ringkasan Aktiviti..." rows="2" value={formData.aktiviti} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm outline-none focus:border-indigo-500 resize-none" />
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <textarea name="kekuatan" placeholder="Kekuatan..." rows="2" value={formData.kekuatan} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 text-xs outline-none focus:border-indigo-500 resize-none" />
+                                                            <textarea name="kelemahan" placeholder="Kelemahan..." rows="2" value={formData.kelemahan} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 text-xs outline-none focus:border-indigo-500 resize-none" />
+                                                        </div>
+                                                        <input type="text" name="disediakanOleh" placeholder="Disediakan Oleh" value={formData.disediakanOleh} onChange={handleInputChange} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold outline-none focus:border-indigo-500" />
+                                                    </div>
+                                                )}
+
                                                 <div className="grid grid-cols-2 gap-4 pt-4">
                                                     {[0,1,2,3].map(i => (
                                                         <div key={i} className="aspect-video bg-slate-100 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden group hover:border-indigo-400 transition-all">
@@ -609,7 +936,7 @@
                                                     ))}
                                                 </div>
                                                 <button onClick={saveReport} disabled={isSaving || !user} className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-[2rem] shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-widest text-xs">
-                                                    {isSaving ? 'Processing...' : <><Cloud size={18} /> Publish to Archive</>}
+                                                    {isSaving ? 'Processing...' : <><Cloud size={18} /> Simpan Laporan</>}
                                                 </button>
                                             </div>
                                         </section>
@@ -623,7 +950,7 @@
                                             </div>
                                         </div>
                                         <div className="w-full overflow-auto max-h-[85vh] scrollbar-hide p-8 bg-slate-300/40 rounded-[3rem] shadow-inner border border-slate-300/30">
-                                            <ReportDocument data={formData} reportImages={images} schoolLogo={logo} />
+                                            <ReportDocument data={{...formData, type: reportType}} reportImages={images} schoolLogo={logo} />
                                         </div>
                                     </div>
                                 </div>
@@ -631,29 +958,121 @@
 
                             {activeTab === 'archive' && !viewingReport && (
                                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                                    <div className="flex flex-col lg:flex-row justify-between items-center bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 gap-8">
-                                        <div><h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Cloud Repository</h2><p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Multi-device Synced Database</p></div>
-                                        <div className="flex flex-wrap justify-center bg-slate-100 p-1.5 rounded-[1.5rem] border border-slate-200">
-                                            {CATEGORIES.map(cat => (
-                                                <button key={cat.id} onClick={() => setArchiveFilter(cat.id)} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all duration-300 ${archiveFilter === cat.id ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
-                                                    <cat.icon size={14} className="inline mr-1" /> {cat.label}
+                                    <div className="flex flex-col xl:flex-row justify-between items-start bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 gap-8">
+                                        <div className="space-y-6">
+                                            <div>
+                                                <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Arkib Laporan</h2>
+                                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Pengkalan Data Awan</p>
+                                            </div>
+
+                                            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-fit">
+                                                <button 
+                                                    onClick={() => { setArchiveReportType('program'); setArchiveUnitFilter('ALL'); }} 
+                                                    className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${archiveReportType === 'program' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                                >
+                                                    <Layout size={14} /> Laporan Program (OPR)
                                                 </button>
-                                            ))}
+                                                <button 
+                                                    onClick={() => { setArchiveReportType('weekly'); setArchiveUnitFilter('ALL'); }} 
+                                                    className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${archiveReportType === 'weekly' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                                >
+                                                    <Layout size={14} /> Laporan Mingguan
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-4 items-center w-full xl:w-auto">
+                                            <div className="flex flex-wrap justify-center bg-slate-100 p-1.5 rounded-[1.5rem] border border-slate-200">
+                                                {CATEGORIES.map(cat => (
+                                                    <button key={cat.id} onClick={() => {setArchiveFilter(cat.id); setArchiveUnitFilter('ALL');}} className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase transition-all duration-300 ${archiveFilter === cat.id ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>
+                                                        <cat.icon size={14} className="inline mr-1" /> {cat.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="w-full max-w-md">
+                                                <select value={archiveUnitFilter} onChange={(e) => setArchiveUnitFilter(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl p-2.5 outline-none">
+                                                    <option value="ALL">Semua Unit</option>
+                                                    {(UNIT_DATA[archiveFilter] || []).map((u, idx) => (
+                                                        <option key={idx} value={u}>{u}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
+
                                     <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
-                                        <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
-                                            <div className="col-span-1">Status</div><div className="col-span-5 text-left">Identity & Date</div><div className="col-span-3">Unit</div><div className="col-span-3">Actions</div>
+                                        
+                                        {archiveReportType === 'weekly' && archiveUnitFilter !== 'ALL' && (() => {
+                                            const stats = getMeetingStats(archiveUnitFilter);
+                                            return (
+                                                <div className="bg-emerald-50 border-b border-emerald-100 p-6 flex items-center justify-between gap-6 animate-in fade-in">
+                                                    <div className="flex-grow">
+                                                        <div className="flex justify-between items-end mb-2">
+                                                            <div>
+                                                                <h4 className="text-emerald-900 font-black uppercase text-sm leading-none">{archiveUnitFilter}</h4>
+                                                                <p className="text-emerald-600 text-[9px] font-bold uppercase tracking-widest mt-1">Status Aktiviti Tahunan</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-xs font-black text-emerald-800">{stats.count} / 12</span>
+                                                                <span className="text-[8px] font-bold text-emerald-500 uppercase block">Perjumpaan Selesai</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-full bg-emerald-200 rounded-full h-3 overflow-hidden shadow-inner">
+                                                            <div 
+                                                                className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out relative" 
+                                                                style={{width: `${stats.percent}%`}}
+                                                            >
+                                                                <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMjBMMjAgMEgwTDIwIDIwIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0idXJsKCNwKSIvPjwvc3ZnPg==')]"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center bg-white p-3 rounded-2xl border border-emerald-100 shadow-sm min-w-[90px]">
+                                                        <span className="block text-2xl font-black text-emerald-600 leading-none">{stats.percent}%</span>
+                                                        <span className="text-[7px] font-bold text-emerald-400 uppercase tracking-widest mt-1 block">Pencapaian</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        <div className={`grid grid-cols-12 border-b border-slate-200 px-8 py-4 text-[10px] font-black text-white uppercase tracking-widest text-center ${archiveReportType === 'weekly' ? 'bg-emerald-600' : 'bg-indigo-600'}`}>
+                                            <div className="col-span-1">Jenis</div><div className="col-span-5 text-left">{archiveReportType === 'weekly' ? 'Unit & Tarikh' : 'Nama Program & Tarikh'}</div><div className="col-span-3">Butiran</div><div className="col-span-3">Tindakan</div>
                                         </div>
                                         <div className="divide-y divide-slate-100">
-                                            {reports.filter(r => r.kategori === archiveFilter).length === 0 ? <div className="py-20 text-center text-slate-300 font-bold uppercase">Empty Repository</div> : reports.filter(r => r.kategori === archiveFilter).map(report => (
-                                                <div key={report.id} className="grid grid-cols-12 px-8 py-6 items-center hover:bg-slate-50 transition-all group">
-                                                    <div className="col-span-1 flex justify-center text-emerald-500"><FileDown size={18} /></div>
-                                                    <div className="col-span-5"><h4 className="font-black text-slate-800 text-sm uppercase truncate">{report.namaProgram}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{report.tarikh}</p></div>
-                                                    <div className="col-span-3 truncate text-[10px] font-bold text-slate-500 uppercase text-center">{report.anjuran}</div>
-                                                    <div className="col-span-3 flex justify-end gap-3"><button onClick={() => setViewingReport(report)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-black transition-all flex items-center gap-1"><Eye size={12}/> View PDF</button><button onClick={() => deleteReport(report.id)} className="p-2.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={18}/></button></div>
-                                                </div>
-                                            ))}
+                                            {(() => {
+                                                const filtered = reports.filter(r => {
+                                                    const rType = r.type || 'program'; 
+                                                    const matchType = rType === archiveReportType;
+                                                    
+                                                    const matchCat = r.kategori === archiveFilter;
+                                                    const matchUnit = archiveUnitFilter === 'ALL' || r.unitNama === archiveUnitFilter;
+                                                    
+                                                    return matchType && matchCat && matchUnit;
+                                                });
+                                                
+                                                if (filtered.length === 0) return <div className="py-20 text-center text-slate-300 font-bold uppercase">Tiada Rekod Dijumpai</div>;
+
+                                                return filtered.map(report => (
+                                                    <div key={report.id} className="grid grid-cols-12 px-8 py-6 items-center hover:bg-slate-50 transition-all group">
+                                                        <div className="col-span-1 flex justify-center">
+                                                            {report.type === 'weekly' 
+                                                                ? <span className="bg-emerald-100 text-emerald-600 px-2 py-1 rounded text-[8px] font-bold">MINGGUAN</span> 
+                                                                : <span className="bg-indigo-100 text-indigo-600 px-2 py-1 rounded text-[8px] font-bold">PROGRAM</span>}
+                                                        </div>
+                                                        <div className="col-span-5">
+                                                            <h4 className="font-black text-slate-800 text-sm uppercase truncate">{report.type === 'weekly' ? report.unitNama : report.namaProgram}</h4>
+                                                            <p className="text-[10px] text-slate-400 font-bold uppercase">{report.tarikh}</p>
+                                                        </div>
+                                                        <div className="col-span-3 truncate text-[10px] font-bold text-slate-500 uppercase text-center">
+                                                            {report.type === 'weekly' ? `Hadir: ${report.kehadiranHadir}/${report.kehadiranJumlah}` : report.anjuran}
+                                                        </div>
+                                                        <div className="col-span-3 flex justify-end gap-3">
+                                                            <button onClick={() => setViewingReport(report)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-md hover:bg-black transition-all flex items-center gap-1"><Eye size={12}/> Lihat</button>
+                                                            <button onClick={() => deleteReport(report.id)} className="p-2.5 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={18}/></button>
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
@@ -662,7 +1081,7 @@
                             {viewingReport && (
                                 <div className="flex flex-col items-center space-y-10 animate-in fade-in zoom-in-95">
                                     <div className="w-full max-w-[210mm] flex justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-200">
-                                        <button onClick={() => setViewingReport(null)} className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-black text-[10px] uppercase tracking-widest"><ChevronLeft size={22}/> Close Archive</button>
+                                        <button onClick={() => setViewingReport(null)} className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-black text-[10px] uppercase tracking-widest"><ChevronLeft size={22}/> Tutup Arkib</button>
                                         <div className="flex gap-3">
                                             <button onClick={downloadAsJPG} className="bg-rose-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-md"><Download size={18} className="inline mr-1" /> JPG</button>
                                             <button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-md"><Printer size={18} className="inline mr-1" /> PDF</button>
@@ -676,16 +1095,12 @@
                         </main>
                         <footer className="bg-slate-900 text-slate-500 py-12 text-center text-[10px] font-black uppercase border-t border-slate-800 tracking-widest">
                             <p>&copy; 2026 UNIT KO-KURIKULUM SMK MAT SALLEH RANAU</p>
-                            <p className="text-[7px] mt-2 opacity-40 font-medium tracking-wider">Developed by Mohalil</p>
+                            <p className="text-[7px] mt-2 font-medium tracking-wider text-yellow-400">Developed by Mohalil</p>
                         </footer>
                     </div>
                     
-                    {/* Print Area:
-                        Using .screen-hidden class instead of .hidden or display:none.
-                        This keeps it in the DOM for html2canvas to capture.
-                    */}
                     <div id="print-area" className="screen-hidden">
-                        <ReportDocument data={viewingReport || formData} reportImages={viewingReport ? (viewingReport.images || []) : images} schoolLogo={logo} />
+                        <ReportDocument data={viewingReport || {...formData, type: reportType}} reportImages={viewingReport ? (viewingReport.images || []) : images} schoolLogo={logo} />
                     </div>
                     
                     {statusMsg && (
