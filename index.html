@@ -145,11 +145,13 @@
             Check: (p) => <IconBase {...p}><polyline points="20 6 9 17 4 12"/></IconBase>,
             ChevronDown: (p) => <IconBase {...p}><polyline points="6 9 12 15 18 9"/></IconBase>,
             Search: (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="16.65" y2="21"/></IconBase>,
-            FileText: (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>
+            FileText: (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></IconBase>,
+            Share2: (p) => <IconBase {...p}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></IconBase>
         };
 
         const IconPlaceholder = () => <span className="inline-block w-4 h-4 bg-slate-200 rounded-sm animate-pulse"></span>;
         
+        // Destructuring safely, but we will use Lucide.IconName in CATEGORIES to be safe
         const { 
             FileText = IconPlaceholder, PlusCircle = IconPlaceholder, Library = IconPlaceholder, 
             Trophy = IconPlaceholder, Users = IconPlaceholder, Flag = IconPlaceholder, 
@@ -159,7 +161,7 @@
             Save = IconPlaceholder, CheckCircle2 = IconPlaceholder, AlertCircle = IconPlaceholder, 
             Download = IconPlaceholder, Sparkles = IconPlaceholder, Layout = IconPlaceholder, 
             FileDown = IconPlaceholder, Check = IconPlaceholder, ChevronDown = IconPlaceholder,
-            Search = IconPlaceholder
+            Search = IconPlaceholder, Share2 = IconPlaceholder
         } = Lucide;
 
         // --- 1. PASTE YOUR FIREBASE CONFIG HERE ---
@@ -172,11 +174,15 @@
             appId: "1:973468311043:web:31d37d83f6e290f514f836",
             measurementId: "G-KN3PE9ES2H"
         };
+        
+        // --- 2. PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE ---
+        // EXAMPLE: "https://script.google.com/macros/s/XXXXX/exec"
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykfm3uuPuDarUqxm0C1nSlYJZxiyeYzr6qGDcQtaPj5FHGxFJqSJYBceQGeYf1Jgze/exec"; 
 
         const CATEGORIES = [
-            { id: 'UNIT BERUNIFORM', label: 'Unit Beruniform', icon: Flag, border: 'border-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600' },
-            { id: 'SUKAN PERMAINAN', label: 'Sukan & Permainan', icon: Trophy, border: 'border-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-800' },
-            { id: 'KELAB DAN PERSATUAN', label: 'Kelab & Persatuan', icon: Users, border: 'border-rose-900', bg: 'bg-rose-50', text: 'text-rose-900' }
+            { id: 'UNIT BERUNIFORM', label: 'Unit Beruniform', icon: Lucide.Flag, border: 'border-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+            { id: 'SUKAN PERMAINAN', label: 'Sukan & Permainan', icon: Lucide.Trophy, border: 'border-emerald-800', bg: 'bg-emerald-50', text: 'text-emerald-800' },
+            { id: 'KELAB DAN PERSATUAN', label: 'Kelab & Persatuan', icon: Lucide.Users, border: 'border-rose-900', bg: 'bg-rose-50', text: 'text-rose-900' }
         ];
 
         // NEW: Data Lists for Specific Units
@@ -681,7 +687,7 @@
                 });
             };
 
-            // NEW: Updated function to Save PDF Directly to Google Drive (Apps Script)
+            // NEW: Updated function to Save PDF Directly to Google Drive (Supports BOTH Apps Script & GitHub Pages)
             const saveToOfficialDrive = async () => {
                 if (typeof window.html2pdf === 'undefined') {
                     showStatus("Library PDF sedang dimuatkan...", "error");
@@ -690,7 +696,7 @@
                 
                 const element = document.getElementById('print-area');
                 element.classList.remove('screen-hidden');
-                showStatus("Menjana & Memuat naik ke Drive...", "success");
+                showStatus("Menjana PDF...", "success");
 
                 try {
                     const filename = `${reportType === 'program' ? formData.namaProgram : formData.unitNama}.pdf`;
@@ -702,16 +708,16 @@
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
 
-                    // Detect if running in Google Apps Script Environment
+                    // Generate PDF as Base64 string
+                    const pdfDataUri = await window.html2pdf().set(opt).from(element).output('datauristring');
+                    const base64Data = pdfDataUri.split(',')[1]; // Remove prefix
+
+                    // Detect Environment: Google Apps Script OR External (GitHub Pages)
                     if (window.google && window.google.script) {
-                        // Generate PDF as Base64 string
-                        const pdfWorker = await window.html2pdf().set(opt).from(element).outputPdf('datauristring');
-                        const base64Data = pdfWorker.split(',')[1]; // Remove prefix
-                        
-                        // Your Drive Folder ID
+                        // --- RUNNING IN APPS SCRIPT ---
+                        // Your Drive Folder ID (Already configured in Code.gs, but nice to have ref)
                         const folderId = "1CEWg2eYCkeyTAjdXw3RfUGsJH8y7JLki";
 
-                        // Call server-side function in Code.gs
                         window.google.script.run
                             .withSuccessHandler((url) => {
                                 showStatus("✅ Berjaya disimpan di Google Drive!", "success");
@@ -726,15 +732,38 @@
                                 element.classList.add('screen-hidden');
                             })
                             .uploadToDrive(base64Data, filename, folderId);
-                            
+
+                    } else if (GOOGLE_SCRIPT_URL) {
+                        // --- RUNNING ON GITHUB PAGES ---
+                        showStatus("Memuat naik ke Google Drive...", "success");
+                        
+                        // Send POST request to the Web App URL
+                        const response = await fetch(GOOGLE_SCRIPT_URL, {
+                            method: "POST",
+                            body: JSON.stringify({ filename: filename, base64: base64Data }),
+                            // 'no-cors' needed because GAS Web Apps don't support CORS for application/json easily
+                            // but text/plain is usually fine. Let's try standard fetch first.
+                             headers: {
+                                "Content-Type": "text/plain;charset=utf-8",
+                            },
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.status === 'success') {
+                             showStatus("✅ Berjaya disimpan di Google Drive!", "success");
+                             if(confirm("Fail berjaya disimpan. Buka folder Google Drive?")) {
+                                window.open("https://drive.google.com/drive/folders/1CEWg2eYCkeyTAjdXw3RfUGsJH8y7JLki", "_blank");
+                             }
+                        } else {
+                            throw new Error(result.message || "Ralat tidak diketahui");
+                        }
+                         element.classList.add('screen-hidden');
+
                     } else {
-                        // Fallback: If not in Apps Script (e.g. Local Testing), download manually
-                        await window.html2pdf().set(opt).from(element).save();
-                        setTimeout(() => {
-                            window.open("https://drive.google.com/drive/folders/1CEWg2eYCkeyTAjdXw3RfUGsJH8y7JLki?usp=sharing", '_blank');
-                            alert("MODE PREVIEW: Fail PDF telah dimuat turun ke peranti anda.\n\nSila muat naik fail tersebut secara manual ke folder Google Drive yang dibuka.");
-                        }, 1000);
-                        element.classList.add('screen-hidden');
+                         // Fallback if no URL configured
+                         alert("Sila masukkan URL Web App Google Apps Script anda ke dalam kod (baris 410) untuk mengaktifkan fungsi ini di GitHub Pages.");
+                         element.classList.add('screen-hidden');
                     }
 
                 } catch (err) {
@@ -981,13 +1010,13 @@
                             <div className={`mt-1 pt-2 grid grid-cols-2 gap-16 text-[9px] flex-shrink-0 border-t ${cat.border}`}>
                                 <div className="text-center">
                                     <p className="mb-6 font-medium uppercase">Disediakan Oleh:</p>
-                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold uppercase pb-0.5`}>{data.guruPenasihat || "................................"}</div>
-                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">GURU PENASIHAT</p>
+                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold uppercase pb-0.5`}>{data.guruPenasihat || "..........................................."}</div>
+                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">(GURU PENASIHAT)</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="mb-6 font-medium uppercase">Disahkan Oleh:</p>
-                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold pb-0.5`}>................................</div>
-                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">PK KOKUM / PENGETUA</p>
+                                    <div className={`border-b ${cat.border} w-full mx-auto font-bold pb-0.5`}>...........................................</div>
+                                    <p className="text-[7px] mt-0.5 font-bold opacity-60">(PK KOKURIKULUM)</p>
                                 </div>
                             </div>
                         </div>
