@@ -14,7 +14,10 @@
     
     <!-- Utility Libraries -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- html2canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -24,9 +27,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="OPR Ko-Q">
     <meta name="theme-color" content="#4f46e5">
-    
-    <!-- Manifest Placeholder (Filled by Script) -->
-    <link rel="manifest" id="manifest-placeholder">
     
     <script>
         // --- PWA Auto-Configuration Script ---
@@ -49,18 +49,6 @@
                 link.href = cfg.href;
                 document.head.appendChild(link);
             });
-            const manifest = {
-                name: "OPR Unit Ko-Kurikulum",
-                short_name: "OPR Ko-Q",
-                start_url: ".",
-                display: "standalone",
-                background_color: "#f8fafc",
-                theme_color: "#4f46e5",
-                orientation: "portrait",
-                icons: [{ src: iconUrl, sizes: "512x512", type: "image/svg+xml" }]
-            };
-            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
-            document.getElementById('manifest-placeholder').href = URL.createObjectURL(manifestBlob);
         })();
     </script>
 
@@ -135,21 +123,7 @@
         const { useState, useEffect, useRef } = React;
 
         const IconBase = ({ size = 24, className = "", children, ...props }) => (
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width={size} 
-                height={size} 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className={className} 
-                {...props}
-            >
-                {children}
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
         );
 
         const Lucide = {
@@ -230,7 +204,6 @@
             ]
         };
 
-        // NEW: Senarai Nama Guru (Sila tambah/ubah nama di sini)
         const GURU_LIST = [
             "Agnes Godtol", "Aloysius Imi", "Anngie Leonie Chan", "Aslinah Sahalim", "Asriah Nain", 
             "Azly Ogos", "Baita Gadana", "Camilus Salungin", "Celestina Joseph Abi", "Christina Binty", 
@@ -683,6 +656,91 @@
                     } else {
                         showStatus("Gagal memadam.", "error"); 
                     }
+                }
+            };
+
+            const downloadAsPDF = () => {
+                if (typeof window.html2pdf === 'undefined') {
+                    showStatus("Library PDF sedang dimuatkan, sila cuba sebentar lagi...", "error");
+                    return;
+                }
+                const element = document.getElementById('print-area');
+                const opt = {
+                    margin: 0,
+                    filename: `${reportType === 'program' ? formData.namaProgram : formData.unitNama}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                element.classList.remove('screen-hidden');
+                
+                window.html2pdf().set(opt).from(element).save().then(() => {
+                    element.classList.add('screen-hidden');
+                    showStatus("PDF Disimpan!");
+                });
+            };
+
+            // NEW: Updated function to Save PDF Directly to Google Drive (Apps Script)
+            const saveToOfficialDrive = async () => {
+                if (typeof window.html2pdf === 'undefined') {
+                    showStatus("Library PDF sedang dimuatkan...", "error");
+                    return;
+                }
+                
+                const element = document.getElementById('print-area');
+                element.classList.remove('screen-hidden');
+                showStatus("Menjana & Memuat naik ke Drive...", "success");
+
+                try {
+                    const filename = `${reportType === 'program' ? formData.namaProgram : formData.unitNama}.pdf`;
+                    const opt = {
+                        margin: 0,
+                        filename: filename,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    // Detect if running in Google Apps Script Environment
+                    if (window.google && window.google.script) {
+                        // Generate PDF as Base64 string
+                        const pdfWorker = await window.html2pdf().set(opt).from(element).outputPdf('datauristring');
+                        const base64Data = pdfWorker.split(',')[1]; // Remove prefix
+                        
+                        // Your Drive Folder ID
+                        const folderId = "1CEWg2eYCkeyTAjdXw3RfUGsJH8y7JLki";
+
+                        // Call server-side function in Code.gs
+                        window.google.script.run
+                            .withSuccessHandler((url) => {
+                                showStatus("✅ Berjaya disimpan di Google Drive!", "success");
+                                element.classList.add('screen-hidden');
+                                if(confirm("Fail berjaya disimpan. Buka folder Google Drive?")) {
+                                    window.open("https://drive.google.com/drive/folders/" + folderId, "_blank");
+                                }
+                            })
+                            .withFailureHandler((error) => {
+                                console.error(error);
+                                showStatus("Ralat Google Drive: " + error.message, "error");
+                                element.classList.add('screen-hidden');
+                            })
+                            .uploadToDrive(base64Data, filename, folderId);
+                            
+                    } else {
+                        // Fallback: If not in Apps Script (e.g. Local Testing), download manually
+                        await window.html2pdf().set(opt).from(element).save();
+                        setTimeout(() => {
+                            window.open("https://drive.google.com/drive/folders/1CEWg2eYCkeyTAjdXw3RfUGsJH8y7JLki?usp=sharing", '_blank');
+                            alert("MODE PREVIEW: Fail PDF telah dimuat turun ke peranti anda.\n\nSila muat naik fail tersebut secara manual ke folder Google Drive yang dibuka.");
+                        }, 1000);
+                        element.classList.add('screen-hidden');
+                    }
+
+                } catch (err) {
+                    console.error(err);
+                    showStatus("Ralat: " + err.message, "error");
+                    element.classList.add('screen-hidden');
                 }
             };
 
@@ -1146,8 +1204,11 @@
                                         <div className="flex w-full justify-between items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
                                             <h2 className="font-black text-slate-800 uppercase tracking-widest text-[11px] px-4 underline decoration-indigo-500 decoration-2">Live Preview (A4 Scale)</h2>
                                             <div className="flex gap-2">
-                                                <button onClick={downloadAsJPG} disabled={isDownloading} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all disabled:opacity-50"><Download size={16}/> JPG</button>
-                                                <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Printer size={16}/> PDF</button>
+                                                {/* Updated Button to call saveToOfficialDrive */}
+                                                <button onClick={saveToOfficialDrive} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all flex items-center gap-1"><Cloud size={16}/> Simpan ke Drive Rasmi</button>
+                                                <button onClick={downloadAsPDF} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Download size={16}/> PDF</button>
+                                                <button onClick={downloadAsJPG} className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Download size={16}/> JPG</button>
+                                                <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Printer size={16}/> Print</button>
                                             </div>
                                         </div>
                                         <div className="w-full overflow-auto max-h-[85vh] scrollbar-hide p-8 bg-slate-300/40 rounded-[3rem] shadow-inner border border-slate-300/30">
@@ -1284,8 +1345,11 @@
                                     <div className="w-full max-w-[210mm] flex justify-between items-center bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-200">
                                         <button onClick={() => setViewingReport(null)} className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 font-black text-[10px] uppercase tracking-widest"><ChevronLeft size={22}/> Tutup Arkib</button>
                                         <div className="flex gap-3">
-                                            <button onClick={downloadAsJPG} className="bg-rose-500 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-md"><Download size={18} className="inline mr-1" /> JPG</button>
-                                            <button onClick={() => window.print()} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase shadow-md"><Printer size={18} className="inline mr-1" /> PDF</button>
+                                            {/* Updated Button here as well */}
+                                            <button onClick={saveToOfficialDrive} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all flex items-center gap-1"><Cloud size={16}/> Simpan ke Drive Rasmi</button>
+                                            <button onClick={downloadAsPDF} className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Download size={16}/> PDF</button>
+                                            <button onClick={downloadAsJPG} className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Download size={16}/> JPG</button>
+                                            <button onClick={() => window.print()} className="bg-slate-700 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-sm transition-all"><Printer size={16}/> Print</button>
                                         </div>
                                     </div>
                                     <div className="w-full overflow-x-auto pb-32 flex justify-center">
